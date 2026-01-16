@@ -6,6 +6,7 @@ import (
 	"TestHitalent/pkg/logger"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -45,24 +46,28 @@ func CreateChatHandler(s *HiTalentServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				http.Error(w, "Internal server error 1", http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error": "Internal server error 1", "description": "` + fmt.Sprint(rec) + `"}`))
 			}
 		}()
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
 			return
 		}
 
 		defer r.Body.Close()
 		req := new(models.Chat)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": "Invalid request body", "description": "` + err.Error() + `"}`))
 			return
 		}
 		chat, err := s.service.CreateChat(req)
 		if err != nil {
-			http.Error(w, "Internal server error 2", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
 		}
 
@@ -71,7 +76,8 @@ func CreateChatHandler(s *HiTalentServer) http.HandlerFunc {
 
 		err = json.NewEncoder(w).Encode(models.Chat{ID: chat.ID, Title: chat.Title, CreatedAt: chat.CreatedAt})
 		if err != nil {
-			http.Error(w, "Internal server error 3", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
 			return
 		}
 	}
@@ -81,13 +87,15 @@ func CreateMessageHandler(s *HiTalentServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				http.Error(w, "Internal server error 1", http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error": "Internal server error 1", "description": "` + fmt.Sprint(rec) + `"}`))
 				return
 			}
 		}()
 
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
 			return
 		}
 
@@ -97,20 +105,23 @@ func CreateMessageHandler(s *HiTalentServer) http.HandlerFunc {
 
 		req := new(models.Message)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": "Invalid request body", "description": "` + err.Error() + `"}`))
 			return
 		}
 
 		msg, err := s.service.CreateMessage(id, req)
 		if err != nil {
-			http.Error(w, "Internal server error 2", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		err = json.NewEncoder(w).Encode(models.Message{ID: msg.ID, ChatID: msg.ChatID, Text: msg.Text, CreatedAt: msg.CreatedAt})
 		if err != nil {
-			http.Error(w, "Internal server error 3", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
 			return
 		}
 	}
@@ -120,33 +131,31 @@ func GetChatHandler(s *HiTalentServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				http.Error(w, "Internal server error 1", http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error": "Internal server error 1", "description": "` + fmt.Sprint(rec) + `"}`))
 				return
 			}
 		}()
 		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
 			return
 		}
 		id := r.PathValue("id")
 
 		defer r.Body.Close()
-
-		req := new(models.Chat)
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
 		chat, err := s.service.GetChat(id)
 		if err != nil {
-			http.Error(w, "Internal server error 2", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(chat)
 		if err != nil {
-			http.Error(w, "Internal server error 3", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
 			return
 		}
 	}
@@ -156,26 +165,30 @@ func DeleteChatHandler(s *HiTalentServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				http.Error(w, "Internal server error 1", http.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error": "Internal server error 1", "description": "` + fmt.Sprint(rec) + `"}`))
 				return
 			}
 		}()
 		if r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
 			return
 		}
 		id := r.PathValue("id")
 		defer r.Body.Close()
 		err := s.service.DeleteChat(id)
 		if err != nil {
-			http.Error(w, "Internal server error 2", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(`{"status":"chat deleted"}`)
 		if err != nil {
-			http.Error(w, "Internal server error 3", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
 			return
 		}
 	}
