@@ -13,7 +13,7 @@ import (
 
 type HiTalentRepositoryInterface interface {
 	CreateChat(chat *models.Chat) (*models.Chat, error)
-	GetChat(chatId int) (*models.Chat, error)
+	GetChat(chatId int, limit int) (*models.ChatAndMessagesResponse, error)
 	CreateMessage(chatId int, message *models.Message) (*models.Message, error)
 	DeleteChat(chatId int) error
 }
@@ -46,7 +46,7 @@ func (s *HiTalentService) CreateChat(chat *models.Chat) (*models.Chat, error) {
 	return s.repo.CreateChat(chat)
 }
 
-func (s *HiTalentService) GetChat(chatId string) (*models.Chat, error) {
+func (s *HiTalentService) GetChat(chatId string, limit int) (*models.ChatAndMessagesResponse, error) {
 	chatID, err := strconv.Atoi(chatId)
 	if err != nil {
 		return nil, suberrors.ErrInvalidChatId
@@ -54,7 +54,7 @@ func (s *HiTalentService) GetChat(chatId string) (*models.Chat, error) {
 	if chatID <= 0 {
 		return nil, suberrors.ErrNotPositiveChatId
 	}
-	return s.repo.GetChat(chatID)
+	return s.repo.GetChat(chatID, limit)
 }
 
 func (s *HiTalentService) CreateMessage(chatId string, message *models.Message) (*models.Message, error) {

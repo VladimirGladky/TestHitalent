@@ -4,16 +4,19 @@ import (
 	"TestHitalent/internal/config"
 	"TestHitalent/internal/models"
 	"TestHitalent/pkg/logger"
+	"TestHitalent/pkg/suberrors"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type HiTalentServiceInterface interface {
 	CreateChat(chat *models.Chat) (*models.Chat, error)
 	CreateMessage(chatId string, message *models.Message) (*models.Message, error)
-	GetChat(chatId string) (*models.Chat, error)
+	GetChat(chatId string, limit int) (*models.ChatAndMessagesResponse, error)
 	DeleteChat(chatId string) error
 }
 
@@ -112,6 +115,11 @@ func CreateMessageHandler(s *HiTalentServer) http.HandlerFunc {
 
 		msg, err := s.service.CreateMessage(id, req)
 		if err != nil {
+			if errors.Is(err, suberrors.ErrChatNotFound) {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"error": "Chat not found"}`))
+				return
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
@@ -143,9 +151,33 @@ func GetChatHandler(s *HiTalentServer) http.HandlerFunc {
 		}
 		id := r.PathValue("id")
 
+		limitStr := r.URL.Query().Get("limit")
+		limit := 20
+
+		if limitStr != "" {
+			parsedLimit, err := strconv.Atoi(limitStr)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error": "Invalid limit parameter", "description": "` + err.Error() + `"}`))
+				return
+			}
+			limit = parsedLimit
+			if limit > 100 {
+				limit = 100
+			}
+			if limit < 1 {
+				limit = 1
+			}
+		}
+
 		defer r.Body.Close()
-		chat, err := s.service.GetChat(id)
+		chat, err := s.service.GetChat(id, limit)
 		if err != nil {
+			if errors.Is(err, suberrors.ErrChatNotFound) {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"error": "Chat not found"}`))
+				return
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
@@ -179,17 +211,15 @@ func DeleteChatHandler(s *HiTalentServer) http.HandlerFunc {
 		defer r.Body.Close()
 		err := s.service.DeleteChat(id)
 		if err != nil {
+			if errors.Is(err, suberrors.ErrChatNotFound) {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"error": "Chat not found"}`))
+				return
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error": "Internal server error 2", "description": "` + err.Error() + `"}`))
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(`{"status":"chat deleted"}`)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
-			return
-		}
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
