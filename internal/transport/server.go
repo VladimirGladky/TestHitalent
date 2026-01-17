@@ -36,10 +36,10 @@ func NewHiTalentServer(cfg *config.Config, service HiTalentServiceInterface, ctx
 
 func (s *HiTalentServer) Run() error {
 	mux := http.NewServeMux()
-	mux.Handle("/api/v1/chats", CreateChatHandler(s))
-	mux.HandleFunc("/api/v1/chats/{id}/messages", CreateMessageHandler(s))
-	mux.HandleFunc("/api/v1/chats/{id}", GetChatHandler(s))
-	mux.HandleFunc("/api/v1/chats/{id}", DeleteChatHandler(s))
+	mux.HandleFunc("POST /api/v1/chats", CreateChatHandler(s))
+	mux.HandleFunc("POST /api/v1/chats/{id}/messages", CreateMessageHandler(s))
+	mux.HandleFunc("GET /api/v1/chats/{id}", GetChatHandler(s))
+	mux.HandleFunc("DELETE /api/v1/chats/{id}", DeleteChatHandler(s))
 	logger.GetLoggerFromCtx(s.ctx).Info("HTTP server is running")
 	addr := s.cfg.Host + ":" + s.cfg.Port
 	return http.ListenAndServe(addr, mux)
@@ -53,12 +53,6 @@ func CreateChatHandler(s *HiTalentServer) http.HandlerFunc {
 				_, _ = w.Write([]byte(`{"error": "Internal server error 1", "description": "` + fmt.Sprint(rec) + `"}`))
 			}
 		}()
-
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
-			return
-		}
 
 		defer r.Body.Close()
 		req := new(models.Chat)
@@ -95,12 +89,6 @@ func CreateMessageHandler(s *HiTalentServer) http.HandlerFunc {
 				return
 			}
 		}()
-
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
-			return
-		}
 
 		id := r.PathValue("id")
 
@@ -144,11 +132,6 @@ func GetChatHandler(s *HiTalentServer) http.HandlerFunc {
 				return
 			}
 		}()
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
-			return
-		}
 		id := r.PathValue("id")
 
 		limitStr := r.URL.Query().Get("limit")
@@ -171,7 +154,7 @@ func GetChatHandler(s *HiTalentServer) http.HandlerFunc {
 		}
 
 		defer r.Body.Close()
-		chat, err := s.service.GetChat(id, limit)
+		chatAndMessage, err := s.service.GetChat(id, limit)
 		if err != nil {
 			if errors.Is(err, suberrors.ErrChatNotFound) {
 				w.WriteHeader(http.StatusNotFound)
@@ -184,7 +167,7 @@ func GetChatHandler(s *HiTalentServer) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err = json.NewEncoder(w).Encode(chat)
+		err = json.NewEncoder(w).Encode(chatAndMessage)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error": "Internal server error 3", "description": "` + err.Error() + `"}`))
@@ -202,11 +185,6 @@ func DeleteChatHandler(s *HiTalentServer) http.HandlerFunc {
 				return
 			}
 		}()
-		if r.Method != http.MethodDelete {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = w.Write([]byte(`{"error": "Method not allowed"}`))
-			return
-		}
 		id := r.PathValue("id")
 		defer r.Body.Close()
 		err := s.service.DeleteChat(id)

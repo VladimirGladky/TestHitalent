@@ -24,8 +24,8 @@ type HiTalentService struct {
 	validate *validator.Validate
 }
 
-func NewHiTalentService(ctx context.Context, repo HiTalentRepositoryInterface) HiTalentService {
-	return HiTalentService{
+func NewHiTalentService(ctx context.Context, repo HiTalentRepositoryInterface) *HiTalentService {
+	return &HiTalentService{
 		repo:     repo,
 		ctx:      ctx,
 		validate: validator.New(),
