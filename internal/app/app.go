@@ -13,7 +13,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type App struct {
@@ -29,6 +31,12 @@ func NewApp(cfg *config.Config,context context.Context) *App {
 	if err != nil {
 		panic(err)
 	}
+
+	// Run migrations
+	if err := runMigrations(db, context); err != nil {
+		panic(err)
+	}
+
 	repo := repository.NewHiTalentRepository(db, context)
 	srv := service.NewHiTalentService(context,repo)
 	server := transport.NewHiTalentServer(cfg, srv,context)
@@ -66,5 +74,28 @@ func (a *App) Run() error {
 		logger.GetLoggerFromCtx(a.ctx).Info("context done")
 	}
 
+	return nil
+}
+
+func runMigrations(db *gorm.DB, ctx context.Context) error {
+	logger.GetLoggerFromCtx(ctx).Info("Running database migrations...")
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.GetLoggerFromCtx(ctx).Error("Failed to get database instance", zap.Error(err))
+		return err
+	}
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		logger.GetLoggerFromCtx(ctx).Error("Failed to set goose dialect", zap.Error(err))
+		return err
+	}
+
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		logger.GetLoggerFromCtx(ctx).Error("Migration failed", zap.Error(err))
+		return err
+	}
+
+	logger.GetLoggerFromCtx(ctx).Info("Database migrations completed successfully!")
 	return nil
 }
