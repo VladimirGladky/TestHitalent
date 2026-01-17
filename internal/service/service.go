@@ -11,6 +11,8 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+//go:generate mockgen -source=service.go -destination=../repository/mocks/mock_repository.go -package=mocks HiTalentRepositoryInterface
+
 type HiTalentRepositoryInterface interface {
 	CreateChat(chat *models.Chat) (*models.Chat, error)
 	GetChat(chatId int, limit int) (*models.ChatAndMessagesResponse, error)

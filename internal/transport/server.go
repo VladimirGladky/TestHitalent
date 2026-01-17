@@ -13,6 +13,8 @@ import (
 	"strconv"
 )
 
+//go:generate mockgen -source=server.go -destination=../service/mocks/mock_service.go -package=mocks HiTalentServiceInterface
+
 type HiTalentServiceInterface interface {
 	CreateChat(chat *models.Chat) (*models.Chat, error)
 	CreateMessage(chatId string, message *models.Message) (*models.Message, error)
